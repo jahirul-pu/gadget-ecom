@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,9 +11,16 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Lock, Mail, MapPin, Phone, User as UserIcon } from "lucide-react";
 import { bdDistricts } from "@/lib/locations";
+import { toast } from "sonner";
 
 export default function SignupPage() {
+  const router = useRouter();
   const [selectedDistrict, setSelectedDistrict] = useState("");
+
+  const handleCreateAccount = () => {
+    toast.success("Account created successfully!");
+    router.push("/");
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 py-12">
@@ -124,7 +132,7 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <Button className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg transition-all shadow-md hover:shadow-blue-600/25 mt-4">
+            <Button onClick={handleCreateAccount} className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg transition-all shadow-md hover:shadow-blue-600/25 mt-4">
               Create Account
             </Button>
           </CardContent>
