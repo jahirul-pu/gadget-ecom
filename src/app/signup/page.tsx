@@ -67,19 +67,29 @@ export default function SignupPage() {
       }
 
       const { data, error } = await supabase.from('users').insert({
-        full_name: fullName,
+        name: fullName,
         phone: phone,
         email: email || null,
         district: selectedDistrict,
         area: selectedArea,
         address: address,
-        password: password
+        password_hash: password
       }).select().single();
       if (error) throw error;
       
+      // Also Save to user_addresses table as default address
+      await supabase.from('user_addresses').insert({
+        user_id: data.id,
+        category: 'Home',
+        district: selectedDistrict,
+        area: selectedArea,
+        full_address: address,
+        is_default: true
+      });
+
       setUser({
         id: data.id,
-        fullName: data.full_name,
+        fullName: data.name,
         phone: data.phone,
         email: data.email,
         district: data.district,

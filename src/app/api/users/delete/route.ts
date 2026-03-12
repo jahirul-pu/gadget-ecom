@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     // Fetch user details first
     const { data: user, error: userError } = await supabase
         .from('users')
-        .select('full_name')
+        .select('name')
         .eq('id', userId)
         .single();
     
@@ -26,8 +26,8 @@ export async function POST(request: Request) {
         // Update all orders for this customer name
         await supabase
             .from('orders')
-            .update({ customer_name: `${user.full_name} (Deleted)` })
-            .eq('customer_name', user.full_name);
+            .update({ customer_name: `${user.name} (Deleted)` })
+            .eq('customer_name', user.name);
     }
 
     // 2. Delete the user

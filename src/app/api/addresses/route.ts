@@ -16,7 +16,13 @@ export async function GET(request: Request) {
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      if (error.message.includes("Could not find the table")) {
+        console.warn("Table 'user_addresses' not found. Returning empty array.");
+        return NextResponse.json([]);
+      }
+      throw error;
+    }
 
     const mapped = data.map(a => ({
       id: a.id,
@@ -30,7 +36,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(mapped);
   } catch (error: any) {
-    console.error("Address GET Error:", error.message);
+    console.error("Address GET Error:", error);
     return NextResponse.json({ error: 'Failed to fetch addresses' }, { status: 500 });
   }
 }
@@ -93,7 +99,7 @@ export async function POST(request: Request) {
     return NextResponse.json(mapped, { status: 201 });
   } catch (error: any) {
     console.error("Address POST Route Error:", error);
-    return NextResponse.json({ error: error.message || 'Failed to add address' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Failed to add address' }, { status: 500 });
   }
 }
 
@@ -139,7 +145,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(mapped);
   } catch (error: any) {
-    console.error("Address PUT Error:", error.message);
+    console.error("Address PUT Error:", error?.message);
     return NextResponse.json({ error: 'Failed to update address' }, { status: 500 });
   }
 }
@@ -193,7 +199,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("Address DELETE Error:", error.message);
+    console.error("Address DELETE Error:", error?.message);
     return NextResponse.json({ error: 'Failed to delete address' }, { status: 500 });
   }
 }

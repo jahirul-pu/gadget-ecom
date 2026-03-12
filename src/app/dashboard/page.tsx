@@ -322,7 +322,7 @@ export default function UserDashboardPage() {
                             </div>
                             <div className="flex items-center justify-between sm:justify-end gap-6">
                               <div className="text-left sm:text-right">
-                                <div className="font-bold text-slate-900">৳{order.total.toLocaleString()}</div>
+                                <div className="font-bold text-slate-900">BDT {order.total.toLocaleString()}</div>
                                 <Badge className={`mt-1 border-none ${
                                   order.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 
                                   order.status === 'Out for Delivery' ? 'bg-cyan-100 text-cyan-700' : 
@@ -484,7 +484,7 @@ export default function UserDashboardPage() {
                              </div>
                              <div className="hidden sm:block">
                                <p className="text-sm text-slate-500 font-medium">Total</p>
-                               <p className="font-bold text-slate-900">৳{order.total.toLocaleString()}</p>
+                               <p className="font-bold text-slate-900">BDT {order.total.toLocaleString()}</p>
                              </div>
                              <div className="hidden md:block">
                                <p className="text-sm text-slate-500 font-medium">Order ID</p>
@@ -648,7 +648,7 @@ export default function UserDashboardPage() {
                         <div className="grid md:grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label className="text-slate-900 font-semibold">District</Label>
-                             <Select value={addressForm.district ? addressForm.district : undefined} onValueChange={(val: string | null) => setAddressForm({...addressForm, district: val ?? '', area: ''})}>
+                             <Select value={addressForm.district || ''} onValueChange={(val: string | null) => setAddressForm({...addressForm, district: val ?? '', area: ''})}>
                               <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-slate-200">
                                 <SelectValue placeholder="Select District" />
                               </SelectTrigger>
@@ -661,7 +661,7 @@ export default function UserDashboardPage() {
                           </div>
                           <div className="space-y-2">
                             <Label className="text-slate-900 font-semibold">Area</Label>
-                            <Select disabled={!addressForm.district} value={addressForm.area ? addressForm.area : undefined} onValueChange={(val: string | null) => setAddressForm({...addressForm, area: val ?? ''})}>
+                            <Select disabled={!addressForm.district} value={addressForm.area || ''} onValueChange={(val: string | null) => setAddressForm({...addressForm, area: val ?? ''})}>
                               <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-slate-200 disabled:opacity-50">
                                 <SelectValue placeholder="Select Area" />
                               </SelectTrigger>

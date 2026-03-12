@@ -265,6 +265,7 @@ export default function AdminPanelPage() {
       status: newProduct.stock === 0 ? "Out of Stock" : newProduct.stock! < 10 ? "Low Stock" : "Active",
       images: ["/images/smartphone_hero_1773260880923.png"],
       category: newProduct.category || "Uncategorized",
+      category_id: newProduct.category_id,
       badge: "New",
       colors: [],
       storage: [],
@@ -275,7 +276,7 @@ export default function AdminPanelPage() {
     });
     toast.success("Product Saved Successfully!");
     setIsAddProductOpen(false);
-    setNewProduct({ name: "", category: "", price: 0, stock: 0, description: "" });
+    setNewProduct({ name: "", category: "", category_id: undefined, price: 0, stock: 0, description: "" });
   };
 
   const handleUpdateProduct = async () => {
@@ -453,15 +454,16 @@ export default function AdminPanelPage() {
                             <Select 
                               value={(() => {
                                 const currentCat = categories.find(c => c.name === newProduct.category);
-                                if (!currentCat) return undefined;
+                                if (!currentCat) return "";
                                 if (currentCat.parent_id) {
                                   const parent = categories.find(c => c.id === currentCat.parent_id);
-                                  return parent?.name || undefined;
+                                  return parent?.name || "";
                                 }
                                 return currentCat.name;
                               })()}
                               onValueChange={(val) => {
-                                setNewProduct({...newProduct, category: val as string || ""});
+                                const cat = categories.find(c => c.name === val);
+                                setNewProduct({...newProduct, category: val as string || "", category_id: cat?.id});
                               }}
                             >
                                <SelectTrigger className="w-1/2 rounded-xl"><SelectValue placeholder="Main Category" /></SelectTrigger>
@@ -472,11 +474,12 @@ export default function AdminPanelPage() {
                             <Select 
                               value={(() => {
                                 const currentCat = categories.find(c => c.name === newProduct.category);
-                                return currentCat?.parent_id ? currentCat.name : undefined;
+                                return currentCat?.parent_id ? currentCat.name : "";
                               })()}
                               onValueChange={(val) => {
                                 if (!val) return;
-                                setNewProduct({...newProduct, category: val as string});
+                                const cat = categories.find(c => c.name === val);
+                                setNewProduct({...newProduct, category: val as string, category_id: cat?.id});
                               }}
                               disabled={(() => {
                                 const currentCat = categories.find(c => c.name === newProduct.category);
@@ -509,11 +512,11 @@ export default function AdminPanelPage() {
                         <h4 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Pricing</h4>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="originalPrice">Cost / Original Price (৳)</Label>
+                            <Label htmlFor="originalPrice">Cost / Original Price (BDT)</Label>
                             <Input id="originalPrice" type="number" value={newProduct.originalPrice || 0} onChange={e => setNewProduct({ ...newProduct, originalPrice: Number(e.target.value) })} placeholder="0.00" />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="price">Sale Price (৳)</Label>
+                            <Label htmlFor="price">Sale Price (BDT)</Label>
                             <Input id="price" type="number" value={newProduct.price || 0} onChange={e => setNewProduct({ ...newProduct, price: Number(e.target.value) })} placeholder="0.00" />
                           </div>
                         </div>
@@ -617,15 +620,16 @@ export default function AdminPanelPage() {
                           <Select 
                             value={(() => {
                               const currentCat = categories.find(c => c.name === editProduct.category);
-                              if (!currentCat) return undefined;
+                              if (!currentCat) return "";
                               if (currentCat.parent_id) {
                                 const parent = categories.find(c => c.id === currentCat.parent_id);
-                                return parent?.name || undefined;
+                                return parent?.name || "";
                               }
                               return currentCat.name;
                             })()}
                             onValueChange={(val) => {
-                              setEditProduct({...editProduct, category: val as string || ""});
+                              const cat = categories.find(c => c.name === val);
+                              setEditProduct({...editProduct, category: val as string || "", category_id: cat?.id});
                             }}
                           >
                              <SelectTrigger className="w-1/2 rounded-xl"><SelectValue placeholder="Main Category" /></SelectTrigger>
@@ -636,11 +640,12 @@ export default function AdminPanelPage() {
                           <Select 
                             value={(() => {
                               const currentCat = categories.find(c => c.name === editProduct.category);
-                              return currentCat?.parent_id ? currentCat.name : undefined;
+                              return currentCat?.parent_id ? currentCat.name : "";
                             })()}
                             onValueChange={(val) => {
                               if (!val) return;
-                              setEditProduct({...editProduct, category: val as string});
+                              const cat = categories.find(c => c.name === val);
+                              setEditProduct({...editProduct, category: val as string, category_id: cat?.id});
                             }}
                             disabled={(() => {
                               const currentCat = categories.find(c => c.name === editProduct.category);
@@ -664,11 +669,11 @@ export default function AdminPanelPage() {
 
                     <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="edit-originalPrice">Original Price (৳)</Label>
+                        <Label htmlFor="edit-originalPrice">Original Price (BDT)</Label>
                         <Input id="edit-originalPrice" type="number" value={editProduct.originalPrice || 0} onChange={e => setEditProduct({ ...editProduct, originalPrice: Number(e.target.value) })} placeholder="0.00" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="edit-price">Sale Price (৳)</Label>
+                        <Label htmlFor="edit-price">Sale Price (BDT)</Label>
                         <Input id="edit-price" type="number" value={editProduct.price || 0} onChange={e => setEditProduct({ ...editProduct, price: Number(e.target.value) })} placeholder="0.00" />
                       </div>
                       <div className="space-y-2">
@@ -705,7 +710,7 @@ export default function AdminPanelPage() {
                     <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600"><TrendingUp className="w-4 h-4" /></div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold text-slate-900">৳2.4M</div>
+                    <div className="text-3xl font-bold text-slate-900">BDT 2.4M</div>
                     <p className="text-xs text-emerald-600 font-medium flex items-center mt-1">
                       <ArrowUpRight className="w-3 h-3 mr-1" /> +12.5% from last month
                     </p>
@@ -785,7 +790,7 @@ export default function AdminPanelPage() {
                                 {order.status}
                               </Badge>
                             </TableCell>
-                            <TableCell className="px-6 text-right font-bold text-slate-900">৳{order.total.toLocaleString()}</TableCell>
+                            <TableCell className="px-6 text-right font-bold text-slate-900">BDT {order.total.toLocaleString()}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -875,9 +880,9 @@ export default function AdminPanelPage() {
                           </TableCell>
                           <TableCell className="text-slate-600">{product.category}</TableCell>
                           <TableCell>
-                            <div className="font-bold text-slate-900">৳{product.price.toLocaleString()}</div>
+                            <div className="font-bold text-slate-900">BDT {product.price.toLocaleString()}</div>
                             {product.originalPrice > product.price && (
-                              <div className="text-xs font-semibold text-emerald-600 mt-0.5">Save ৳{(product.originalPrice - product.price).toLocaleString()}</div>
+                              <div className="text-xs font-semibold text-emerald-600 mt-0.5">Save BDT {(product.originalPrice - product.price).toLocaleString()}</div>
                             )}
                           </TableCell>
                           <TableCell>
@@ -967,10 +972,10 @@ export default function AdminPanelPage() {
                             <TableCell className="px-6">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-gradient-to-tr from-slate-900 to-slate-700 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 border-2 border-slate-50 shadow-sm">
-                                  {user.full_name?.charAt(0)?.toUpperCase() || "U"}
+                                  {user.name?.charAt(0)?.toUpperCase() || "U"}
                                 </div>
                                 <div>
-                                  <div className="font-bold text-slate-900">{user.full_name}</div>
+                                  <div className="font-bold text-slate-900">{user.name}</div>
                                   <div className="text-[10px] text-slate-400 font-mono">#{user.id.substring(0, 8)}</div>
                                 </div>
                               </div>
@@ -1078,7 +1083,7 @@ export default function AdminPanelPage() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="font-bold text-slate-900">৳{order.total.toLocaleString()}</TableCell>
+                            <TableCell className="font-bold text-slate-900">BDT {order.total.toLocaleString()}</TableCell>
                             <TableCell className="text-slate-600 text-sm">{order.payment}</TableCell>
                             <TableCell>
                               <DropdownMenu>
@@ -1415,10 +1420,10 @@ export default function AdminPanelPage() {
                   <div className="bg-slate-900 p-8 text-white relative">
                     <div className="flex items-center gap-6">
                       <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center text-3xl font-bold shadow-xl shadow-blue-500/20">
-                        {selectedUser.full_name?.charAt(0).toUpperCase()}
+                        {selectedUser.name?.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <h2 className="text-2xl font-bold">{selectedUser.full_name}</h2>
+                        <h2 className="text-2xl font-bold">{selectedUser.name}</h2>
                         <p className="text-slate-400 font-mono text-sm mt-1">ID: {selectedUser.id}</p>
                       </div>
                     </div>
@@ -1470,16 +1475,16 @@ export default function AdminPanelPage() {
                         <Label className="text-white/40 uppercase text-[10px] font-black tracking-widest leading-none block mb-4">Commercial Value</Label>
                         <div className="w-full">
                           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">Total Lifetime Revenue</p>
-                          <p className="text-3xl font-black text-white leading-none truncate overflow-hidden text-ellipsis">৳{orders.filter(o => o.customer === selectedUser.full_name).reduce((sum, o) => sum + o.total, 0).toLocaleString()}</p>
+                          <p className="text-3xl font-black text-white leading-none truncate overflow-hidden text-ellipsis">BDT {orders.filter(o => o.customer === selectedUser.name).reduce((sum, o) => sum + o.total, 0).toLocaleString()}</p>
                         </div>
                         <div className="pt-4 mt-4 border-t border-white/10 grid grid-cols-2 gap-4 w-full">
                           <div className="min-w-0">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-1 truncate">Total Orders</p>
-                            <p className="text-xl font-black truncate">{orders.filter(o => o.customer === selectedUser.full_name).length}</p>
+                            <p className="text-xl font-black truncate">{orders.filter(o => o.customer === selectedUser.name).length}</p>
                           </div>
                           <div className="text-right min-w-0">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-1 truncate">AOV</p>
-                            <p className="text-xl font-black truncate">৳{orders.filter(o => o.customer === selectedUser.full_name).length > 0 ? (orders.filter(o => o.customer === selectedUser.full_name).reduce((sum, o) => sum + o.total, 0) / orders.filter(o => o.customer === selectedUser.full_name).length).toFixed(0) : '0'}</p>
+                            <p className="text-xl font-black truncate">BDT {orders.filter(o => o.customer === selectedUser.name).length > 0 ? (orders.filter(o => o.customer === selectedUser.name).reduce((sum, o) => sum + o.total, 0) / orders.filter(o => o.customer === selectedUser.name).length).toFixed(0) : '0'}</p>
                           </div>
                         </div>
                       </div>
@@ -1495,20 +1500,20 @@ export default function AdminPanelPage() {
                           </h3>
                         </div>
                         <div className="space-y-3">
-                          {orders.filter(o => o.customer === selectedUser.full_name).length === 0 ? (
+                          {orders.filter(o => o.customer === selectedUser.name).length === 0 ? (
                             <div className="py-24 flex flex-col items-center justify-center bg-white rounded-[2.5rem] border border-slate-100">
                               <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4"><ShoppingCart className="w-8 h-8 text-slate-200" /></div>
                               <p className="text-slate-400 font-bold">No purchase history found</p>
                             </div>
                           ) : (
-                            orders.filter(o => o.customer === selectedUser.full_name).map(order => (
+                            orders.filter(o => o.customer === selectedUser.name).map(order => (
                               <div key={order.id} className="bg-white p-4 border border-slate-100 rounded-[1.5rem] flex items-center gap-4 hover:shadow-md transition-all group">
                                 <div className="w-16 h-16 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center p-2 shrink-0 relative overflow-hidden">
                                   <Image src={order.image} alt="Product" fill className="object-contain p-2 group-hover:scale-110 transition-transform" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex justify-between items-center mb-1">
-                                    <span className="font-black text-slate-900 text-base">৳{order.total.toLocaleString()}</span>
+                                    <span className="font-black text-slate-900 text-base">BDT {order.total.toLocaleString()}</span>
                                     <Badge className={`text-[9px] font-black px-2 py-0.5 rounded-md border-none ${order.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' :
                                       order.status === 'Cancelled' ? 'bg-rose-100 text-rose-700' :
                                         'bg-blue-100 text-blue-700'

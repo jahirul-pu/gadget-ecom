@@ -33,7 +33,7 @@ export default function LoginPage() {
         .from('users')
         .select('*')
         .or(`email.eq.${identity},phone.eq.${identity}`)
-        .eq('password', password)
+        .eq('password_hash', password)
         .single();
 
       if (error || !data) {
@@ -43,7 +43,7 @@ export default function LoginPage() {
 
       setUser({
         id: data.id,
-        fullName: data.full_name,
+        fullName: data.name,
         phone: data.phone,
         email: data.email,
         district: data.district,
@@ -51,7 +51,7 @@ export default function LoginPage() {
         address: data.address
       });
 
-      toast.success(`Welcome back, ${data.full_name}!`);
+      toast.success(`Welcome back, ${data.name}!`);
       router.push("/");
     } catch (e) {
       console.error(e);
