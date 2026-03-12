@@ -28,7 +28,8 @@ import {
   ChevronRight,
   ChevronDown,
   Edit,
-  Trash2
+  Trash2,
+  LogOut
 } from "lucide-react";
 import { OrderInvoice } from "@/components/OrderInvoice";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -61,6 +62,9 @@ const ADMIN_NAV = [
   { id: "customers", label: "Customers", icon: Users },
   { id: "reviews", label: "Reviews", icon: MessageSquare },
   { id: "ai", label: "AI Assistant", icon: Sparkles },
+];
+
+const SECONDARY_NAV = [
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -90,6 +94,7 @@ export default function AdminPanelPage() {
   const removeProduct = useStore(state => state.removeProduct);
   const orders = useStore(state => state.orders);
   const updateOrderStatus = useStore(state => state.updateOrderStatus);
+  const setUser = useStore(state => state.setUser);
   const [orderStatusFilter, setOrderStatusFilter] = useState("All");
 
   // Users state
@@ -334,7 +339,7 @@ export default function AdminPanelPage() {
 
         {/* Mobile Nav Scroller */}
         <div className="md:hidden flex overflow-x-auto p-4 gap-2 no-scrollbar border-b border-white/10 bg-slate-900">
-          {ADMIN_NAV.map((item) => (
+          {ADMIN_NAV.concat(SECONDARY_NAV).map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
@@ -347,10 +352,56 @@ export default function AdminPanelPage() {
               {item.label}
             </button>
           ))}
+          <button
+            onClick={() => {
+              setUser(null);
+              window.location.href = "/";
+            }}
+            className="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-sm bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </button>
         </div>
 
-        <div className="p-4 border-t border-white/10 hidden md:block">
-          <div className="flex items-center gap-3">
+        <div className="p-4 border-t border-white/10 hidden md:block space-y-2">
+          {/* Secondary Nav (Settings) */}
+          {SECONDARY_NAV.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={`w-full flex items-center justify-between p-3 rounded-xl transition-all mb-2 ${activeTab === tab.id
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                  : "text-slate-500 hover:bg-white/5 hover:text-white"
+                  }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className="w-4 h-4" />
+                  <span className="text-sm font-medium">{tab.label}</span>
+                </div>
+                {activeTab === tab.id && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
+                )}
+              </button>
+            );
+          })}
+
+          {/* Logout Button */}
+          <button
+            onClick={() => {
+              setUser(null);
+              window.location.href = "/";
+            }}
+            className="w-full flex items-center gap-3 p-3 rounded-xl text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 transition-all mb-6"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="text-sm font-medium">Logout</span>
+          </button>
+
+          {/* User Profile */}
+          <div className="flex items-center gap-3 pt-4 border-t border-white/5">
             <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-cyan-400 rounded-full border-2 border-slate-800 shrink-0"></div>
             <div>
               <div className="text-sm font-bold text-white leading-tight">Admin User</div>

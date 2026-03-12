@@ -92,6 +92,17 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
 
   return (
     <div className="bg-slate-50 min-h-screen pb-16 pt-8">
+      {/* Breadcrumbs */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+        <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+          <Link href="/" className="hover:text-blue-600 transition-colors">Home</Link>
+          <ChevronRight className="w-3 h-3" />
+          <Link href="/category/all" className="hover:text-blue-600 transition-colors">Catalog</Link>
+          <ChevronRight className="w-3 h-3 text-slate-300" />
+          <span className="text-blue-600">{categoryName}</span>
+        </div>
+      </div>
+
       {/* Category Header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
         <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
