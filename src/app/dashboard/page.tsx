@@ -115,8 +115,16 @@ export default function UserDashboardPage() {
 
   useEffect(() => {
     setMounted(true);
+    const savedTab = localStorage.getItem('dashboard_active_tab');
+    if (savedTab) setActiveTab(savedTab);
+    
     if (user?.id) fetchAddresses(user.id);
   }, [user?.id, fetchAddresses]);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    localStorage.setItem('dashboard_active_tab', tabId);
+  };
 
   const selectedOrder = RECENT_ORDERS.find(o => o.id === selectedOrderId) || RECENT_ORDERS[0];
 
@@ -220,7 +228,7 @@ export default function UserDashboardPage() {
                 {NAV_ITEMS.map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => handleTabChange(item.id)}
                     className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all ${
                       activeTab === item.id 
                         ? "bg-blue-50 text-blue-600 font-semibold" 
@@ -290,7 +298,7 @@ export default function UserDashboardPage() {
                     <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-4">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-lg text-slate-900">Recent Orders</CardTitle>
-                        <Button variant="ghost" size="sm" onClick={() => setActiveTab("orders")} className="text-blue-600 hover:bg-blue-50 hover:text-blue-700">View All</Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleTabChange("orders")} className="text-blue-600 hover:bg-blue-50 hover:text-blue-700">View All</Button>
                       </div>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -321,7 +329,7 @@ export default function UserDashboardPage() {
                                   {order.status === 'Sent' ? 'Shipped' : order.status}
                                 </Badge>
                               </div>
-                              <Button variant="ghost" size="icon" onClick={() => { setSelectedOrderId(order.id); setActiveTab("tracking"); }} className="group-hover:translate-x-1 transition-transform">
+                              <Button variant="ghost" size="icon" onClick={() => { setSelectedOrderId(order.id); handleTabChange("tracking"); }} className="group-hover:translate-x-1 transition-transform">
                                 <ChevronRight className="w-5 h-5 text-slate-400" />
                               </Button>
                             </div>
@@ -477,7 +485,7 @@ export default function UserDashboardPage() {
                                <p className="font-bold text-slate-900" title={order.id}>#{parseInt(order.id.replace(/[^0-9a-f]/gi, '').substring(0, 8), 16).toString().slice(-5).padStart(5, '0')}</p>
                              </div>
                              <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-                                <Button variant="outline" className="flex-1 sm:flex-none border-blue-200 text-blue-600 hover:bg-blue-50 rounded-xl" onClick={() => { setSelectedOrderId(order.id); setActiveTab("tracking"); }}>Track Order</Button>
+                                <Button variant="outline" className="flex-1 sm:flex-none border-blue-200 text-blue-600 hover:bg-blue-50 rounded-xl" onClick={() => { setSelectedOrderId(order.id); handleTabChange("tracking"); }}>Track Order</Button>
                                 <Button
                                   variant="secondary"
                                   className="flex-1 sm:flex-none bg-slate-900 text-white hover:bg-slate-800 rounded-xl flex items-center gap-2"
@@ -788,7 +796,7 @@ export default function UserDashboardPage() {
                    </div>
                    <h3 className="text-xl font-bold text-slate-900 mb-2 capitalize">{activeTab}</h3>
                    <p className="text-slate-500 text-center max-w-sm mb-6">This section is currently under development. Setup your preferences soon.</p>
-                   <Button variant="outline" onClick={() => setActiveTab("dashboard")} className="rounded-xl font-semibold">Back to Dashboard</Button>
+                   <Button variant="outline" onClick={() => handleTabChange("dashboard")} className="rounded-xl font-semibold">Back to Dashboard</Button>
                  </motion.div>
                )}
 

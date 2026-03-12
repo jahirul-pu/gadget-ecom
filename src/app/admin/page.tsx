@@ -50,6 +50,20 @@ const ADMIN_NAV = [
 
 export default function AdminPanelPage() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const savedTab = localStorage.getItem('admin_active_tab');
+    if (savedTab) {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    localStorage.setItem('admin_active_tab', tabId);
+  };
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [isEditProductOpen, setIsEditProductOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -189,19 +203,28 @@ export default function AdminPanelPage() {
         </div>
         <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1 hidden md:block">
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 px-2">Management</div>
-          {ADMIN_NAV.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${activeTab === item.id
-                  ? "bg-blue-600/10 text-blue-400 font-semibold"
-                  : "hover:bg-white/5 hover:text-white"
+          {ADMIN_NAV.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${
+                  activeTab === tab.id
+                    ? "bg-slate-900 text-white shadow-xl shadow-slate-900/20 translate-x-1"
+                    : "text-slate-500 hover:bg-slate-100/50 hover:text-slate-900"
                 }`}
-            >
-              <item.icon className="w-5 h-5" />
-              {item.label}
-            </button>
-          ))}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className="w-5 h-5" />
+                  {tab.label}
+                </div>
+                {activeTab === tab.id && (
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Mobile Nav Scroller */}
@@ -828,7 +851,7 @@ export default function AdminPanelPage() {
               </div>
               <h3 className="text-2xl font-bold text-slate-900 mb-2 capitalize">{activeTab} Management</h3>
               <p className="text-slate-500 text-center max-w-sm mb-8">This management module is currently being configured and connected to the database.</p>
-              <Button variant="outline" onClick={() => setActiveTab("overview")} className="rounded-xl font-semibold border-slate-200">Return to Overview</Button>
+              <Button variant="outline" onClick={() => handleTabChange("overview")} className="rounded-xl font-semibold border-slate-200">Return to Overview</Button>
             </motion.div>
           )}
 
