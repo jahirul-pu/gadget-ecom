@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Star, ShieldCheck, Truck, ArrowLeft, ArrowRight, Minus, Plus, Heart, Share2, Check } from "lucide-react";
+import { Star, ShieldCheck, Truck, ArrowLeft, ArrowRight, Minus, Plus, Heart, Share2, Check, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -48,8 +49,18 @@ export default function ProductPage() {
   const id = params.id as string;
   const products = useStore(state => state.products);
   const addToCart = useStore(state => state.addToCart);
+  const hasHydrated = useStore(state => state._hasHydrated);
   
   const product = products.find(p => p.id === id);
+
+  if (!hasHydrated || (products.length === 0 && !product)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white flex-col gap-4">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-500 font-medium animate-pulse">Loading amazing gadgets...</p>
+      </div>
+    );
+  }
   const [activeImage, setActiveImage] = useState(0);
   const [activeColor, setActiveColor] = useState(0);
   const [activeStorage, setActiveStorage] = useState(0);
@@ -89,12 +100,21 @@ export default function ProductPage() {
     <div className="bg-white min-h-screen pb-20">
       {/* Breadcrumbs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <span className="hover:text-blue-600 cursor-pointer">Home</span>
-          <ArrowRight className="w-4 h-4" />
-          <span className="hover:text-blue-600 cursor-pointer">Phones & Tablets</span>
-          <ArrowRight className="w-4 h-4" />
-          <span className="text-slate-900 font-medium">{product.name}</span>
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
+          <Link href="/" className="hover:text-blue-600 transition-colors">Home</Link>
+          <ChevronRight className="w-3 h-3" />
+          <Link href="/category/all" className="hover:text-blue-600 transition-colors">Catalog</Link>
+          {product.category.split(' > ').map((seg, idx) => {
+            const slug = seg.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+            return (
+              <div key={idx} className="flex items-center gap-2">
+                <ChevronRight className="w-3 h-3" />
+                <Link href={`/category/${slug}`} className="hover:text-blue-600 transition-colors">{seg}</Link>
+              </div>
+            );
+          })}
+          <ChevronRight className="w-3 h-3" />
+          <span className="text-blue-600 truncate max-w-[200px]">{product.name}</span>
         </div>
       </div>
 

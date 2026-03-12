@@ -3,50 +3,41 @@ import { supabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
-function decodeImageField(cover_image: string | null) {
-  if (!cover_image) return { image: '', phone: null, address: null, district: null, area: null, orderItems: [] };
-  if (cover_image.startsWith('json:')) {
-    try {
-      const parsed = JSON.parse(cover_image.slice(5));
-      return {
-        image: parsed.i || '',
-        phone: parsed.p || null,
-        address: parsed.a || null,
-        district: parsed.d || null,
-        area: parsed.ar || null,
-        orderItems: parsed.oi || []
-      };
-    } catch {
-      return { image: cover_image, phone: null, address: null, district: null, area: null, orderItems: [] };
-    }
-  }
-  return { image: cover_image, phone: null, address: null, district: null, area: null, orderItems: [] };
-}
-
 export async function GET() {
   try {
-    const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        user:users(name, phone, email),
+        items:order_items(
+          *,
+          product:products(name, id, product_images(image_url))
+        )
+      `)
+      .order('created_at', { ascending: false });
+
     if (error) throw error;
     
-    // Map database snake_case fields back to what the frontend expects
-    const mappedOrders = data.map(o => {
-      const extra = decodeImageField(o.cover_image);
-      return {
-        id: o.id,
-        customer: o.customer_name,
-        total: o.total,
-        status: o.status,
-        date: o.created_at.split('T')[0],
-        payment: o.payment_method,
-        items: o.items_count,
-        image: extra.image,
-        phone: extra.phone,
-        address: extra.address,
-        district: extra.district,
-        area: extra.area,
-        orderItems: extra.orderItems
-      };
-    });
+    const mappedOrders = data.map(o => ({
+      id: o.id,
+      customer: o.user?.name || 'Guest User',
+      total: Number(o.total_price),
+      status: o.order_status.charAt(0).toUpperCase() + o.order_status.slice(1),
+      date: o.created_at.split('T')[0],
+      payment: o.payment_method,
+      items: o.items?.length || 0,
+      image: o.items?.[0]?.product?.product_images?.[0]?.image_url || '/images/placeholder.png',
+      phone: o.user?.phone,
+      address: o.shipping_address?.fullAddress || '',
+      district: o.shipping_address?.district || '',
+      area: o.shipping_address?.area || '',
+      orderItems: o.items?.map((item: any) => ({
+        name: item.product?.name,
+        quantity: item.quantity,
+        price: Number(item.price)
+      })) || []
+    }));
     
     return NextResponse.json(mappedOrders);
   } catch (error: any) {
@@ -57,48 +48,34 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const orderData = await request.json();
+    const body = await request.json();
     
-    const extraData = JSON.stringify({
-      i: orderData.image || '',
-      p: orderData.phone || null,
-      a: orderData.address || null,
-      d: orderData.district || null,
-      ar: orderData.area || null,
-      oi: orderData.orderItems || []
-    });
+    // 1. Find or create user (Simple logic for now)
+    let userId = null;
+    if (body.customer) {
+        const { data: userData } = await supabase.from('users').select('id').eq('name', body.customer).single();
+        userId = userData?.id;
+    }
 
-    const newOrder = {
-       customer_name: orderData.customer || 'Guest User',
-       total: orderData.total,
-       status: 'Pending',
-       payment_method: orderData.payment || 'COD',
-       items_count: orderData.items || 1,
-       cover_image: 'json:' + extraData
-    };
+    // 2. Create Order Header
+    const { data: order, error: orderError } = await supabase.from('orders').insert([{
+      user_id: userId,
+      order_status: 'pending',
+      payment_status: 'unpaid',
+      subtotal: body.total, // Simplified subtotal
+      shipping_cost: 0,
+      total_price: body.total,
+      shipping_address: {
+        fullAddress: body.address,
+        district: body.district,
+        area: body.area
+      },
+      payment_method: body.payment || 'COD'
+    }]).select().single();
 
-    const { data, error } = await supabase.from('orders').insert([newOrder]).select().single();
-    if (error) throw error;
-    
-    const extra = decodeImageField(data.cover_image);
+    if (orderError) throw orderError;
 
-    const mappedOrder = {
-      id: data.id,
-      customer: data.customer_name,
-      total: data.total,
-      status: data.status,
-      date: data.created_at.split('T')[0],
-      payment: data.payment_method,
-      items: data.items_count,
-      image: extra.image,
-      phone: extra.phone,
-      address: extra.address,
-      district: extra.district,
-      area: extra.area,
-      orderItems: extra.orderItems
-    };
-
-    return NextResponse.json(mappedOrder, { status: 201 });
+    return NextResponse.json(order, { status: 201 });
   } catch (error: any) {
     console.error("Orders POST Error:", error.message);
     return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
@@ -109,47 +86,15 @@ export async function PATCH(request: Request) {
   try {
     const { id, status } = await request.json();
     
-    if (!id || !status) {
-      return NextResponse.json({ error: 'Missing ID or status' }, { status: 400 });
-    }
-
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('orders')
-      .update({ status })
-      .eq('id', id)
-      .select()
-      .single();
+      .update({ order_status: status.toLowerCase() })
+      .eq('id', id);
 
-    if (error) {
-      console.error("Supabase Order Update Error:", error);
-      throw error;
-    }
+    if (error) throw error;
     
-    const extra = decodeImageField(data.cover_image);
-
-    const mappedOrder = {
-      id: data.id,
-      customer: data.customer_name,
-      total: data.total,
-      status: data.status,
-      date: data.created_at.split('T')[0],
-      payment: data.payment_method,
-      items: data.items_count,
-      image: extra.image,
-      phone: extra.phone,
-      address: extra.address,
-      district: extra.district,
-      area: extra.area,
-      orderItems: extra.orderItems
-    };
-
-    return NextResponse.json(mappedOrder);
+    return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("Orders PATCH Error Trace:", error);
-    return NextResponse.json({ 
-      error: 'Failed to update order', 
-      details: error.message,
-      hint: error.hint
-    }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

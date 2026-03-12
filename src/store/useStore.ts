@@ -12,6 +12,7 @@ export interface Product {
   id: string;
   name: string;
   brand: string;
+  brand_id?: string;
   price: number;
   originalPrice: number;
   discount: string;
@@ -22,6 +23,7 @@ export interface Product {
   status: string;
   images: string[];
   category: string;
+  category_id?: string;
   badge: string;
   colors: string[];
   storage: string[];
@@ -29,6 +31,7 @@ export interface Product {
   description: string;
   specs: Record<string, string>;
   reviews: Review[];
+  is_featured?: boolean;
 }
 
 export interface CartItem {
@@ -95,6 +98,7 @@ interface AppState {
   addAddress: (address: Omit<Address, "id">) => Promise<void>;
   updateAddress: (address: Address) => Promise<void>;
   deleteAddress: (id: string) => Promise<void>;
+  categories: any[];
   user: User | null;
   setUser: (user: User | null) => void;
   fetchInitialData: () => Promise<void>;
@@ -206,6 +210,7 @@ export const useStore = create<AppState>()(
       },
 
       addresses: [],
+      categories: [],
       fetchAddresses: async (userId) => {
         try {
           const res = await fetch(`/api/addresses?userId=${userId}`);
@@ -273,15 +278,17 @@ export const useStore = create<AppState>()(
       setHasHydrated: (state) => set({ _hasHydrated: state }),
       fetchInitialData: async () => {
         try {
-          const [productsRes, ordersRes] = await Promise.all([
-            fetch('/api/products'),
-            fetch('/api/orders')
+          const [productsRes, ordersRes, categoriesRes] = await Promise.all([
+            fetch('/api/products', { cache: 'no-store' }),
+            fetch('/api/orders', { cache: 'no-store' }),
+            fetch('/api/categories', { cache: 'no-store' })
           ]);
           
           const products = await productsRes.json();
           const orders = await ordersRes.json();
+          const categories = await categoriesRes.json();
           
-          set({ products, orders });
+          set({ products, orders, categories });
         } catch (e) {
           console.error("Failed to fetch initial data", e);
         }

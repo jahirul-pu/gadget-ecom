@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, ShoppingBag, Heart, User, Menu, Trash2, Plus, Minus, X, ArrowLeft } from "lucide-react";
+import { Search, ShoppingBag, Heart, User, Menu, Trash2, Plus, Minus, X, ArrowLeft, ChevronDown, ChevronRight, Smartphone, Tablet, Watch, Headphones, Speaker, Mic, Camera, Lightbulb, Shield, Plug, Zap, Cable, Battery, Monitor, Gamepad2, Wifi, Lock, BellRing, Package } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -34,13 +34,18 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const categories = useStore(state => state.categories);
   const products = useStore(state => state.products);
   const cart = useStore(state => state.cart);
   const updateStoreQuantity = useStore(state => state.updateCartQuantity);
   const removeFromCart = useStore(state => state.removeFromCart);
   const user = useStore(state => state.user);
   const setUser = useStore(state => state.setUser);
+  
+  const rootCategories = categories.filter(c => !c.parent_id).sort((a, b) => a.sort_order - b.sort_order);
   
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -104,6 +109,87 @@ export default function Navbar() {
       </header>
     );
   }
+
+  // Icon mapping for subcategories
+  const getSubcategoryIcon = (name: string) => {
+    const n = name.toLowerCase();
+    if (n.includes('smartphone') || n.includes('phone')) return Smartphone;
+    if (n.includes('tablet') || n.includes('fold')) return Tablet;
+    if (n.includes('watch') || n.includes('smartwatch') || n.includes('fitness')) return Watch;
+    if (n.includes('headphone') || n.includes('earbud') || n.includes('tws') || n.includes('wireless earb')) return Headphones;
+    if (n.includes('speaker') || n.includes('bluetooth sp')) return Speaker;
+    if (n.includes('microphone') || n.includes('mic')) return Mic;
+    if (n.includes('camera') || n.includes('action cam') || n.includes('gimbal')) return Camera;
+    if (n.includes('light') || n.includes('lamp') || n.includes('ring light')) return Lightbulb;
+    if (n.includes('security') || n.includes('doorbell')) return Shield;
+    if (n.includes('plug') || n.includes('smart plug')) return Plug;
+    if (n.includes('charger') || n.includes('wireless char')) return Zap;
+    if (n.includes('cable')) return Cable;
+    if (n.includes('power bank') || n.includes('battery')) return Battery;
+    if (n.includes('monitor') || n.includes('stream') || n.includes('display')) return Monitor;
+    if (n.includes('gaming') || n.includes('controller')) return Gamepad2;
+    if (n.includes('wifi') || n.includes('router')) return Wifi;
+    if (n.includes('lock') || n.includes('smart lock')) return Lock;
+    if (n.includes('bell') || n.includes('alarm')) return BellRing;
+    if (n.includes('mount') || n.includes('stand') || n.includes('holder')) return Package;
+    return ChevronRight;
+  };
+
+  const MegaMenu = ({ category }: { category: any }) => {
+    return (
+      <motion.div 
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 8 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className="absolute top-full left-1/2 -translate-x-1/2 w-full max-w-7xl bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] z-50 text-left mt-2"
+        onMouseEnter={() => {
+          if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+          setHoveredCategory(category.slug);
+        }}
+        onMouseLeave={() => {
+          hoverTimeoutRef.current = setTimeout(() => setHoveredCategory(null), 150);
+        }}
+      >
+        <div className="px-6 py-5">
+          <div className="grid grid-cols-4 gap-2">
+            {category.children && category.children.length > 0 ? (
+              category.children.sort((a: any, b: any) => a.sort_order - b.sort_order).map((sub: any) => {
+                const IconComp = getSubcategoryIcon(sub.name);
+                return (
+                  <Link 
+                    key={sub.id} 
+                    href={`/category/${sub.slug}`}
+                    onClick={() => setHoveredCategory(null)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-blue-50 transition-all duration-200 group/item"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-slate-100 group-hover/item:bg-blue-100 flex items-center justify-center shrink-0 transition-colors">
+                      <IconComp className="w-4.5 h-4.5 text-slate-500 group-hover/item:text-blue-600 transition-colors" />
+                    </div>
+                    <span className="text-sm font-medium text-slate-700 group-hover/item:text-blue-600 transition-colors">
+                      {sub.name}
+                    </span>
+                  </Link>
+                );
+              })
+            ) : (
+              <p className="text-slate-400 text-sm py-4 col-span-4">No subcategories yet</p>
+            )}
+          </div>
+          <div className="mt-3 pt-3 border-t border-slate-100">
+            <Link 
+              href={`/category/${category.slug}`}
+              onClick={() => setHoveredCategory(null)}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1.5 transition-colors"
+            >
+              Browse all {category.name}
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-slate-200">
@@ -326,30 +412,69 @@ export default function Navbar() {
               <User className="h-5 w-5 text-slate-900 group-hover:text-blue-600 transition-colors" />
             </Link>
           )}
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <Menu className="h-5 w-5" />
-          </Button>
+          <Sheet>
+            <SheetTrigger render={<Button variant="ghost" size="icon" className="md:hidden" />}>
+               <Menu className="h-5 w-5" />
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[300px] p-0 bg-white">
+               <SheetHeader className="p-6 border-b border-slate-100">
+                  <SheetTitle className="text-xl font-bold">Menu</SheetTitle>
+               </SheetHeader>
+               <div className="p-6">
+                  <div className="flex flex-col gap-6">
+                     {rootCategories.map(cat => (
+                        <div key={cat.id} className="flex flex-col gap-3">
+                           <Link href={`/category/${cat.slug}`} className="font-bold text-slate-900 text-lg flex items-center justify-between">
+                              {cat.name}
+                              <ChevronDown className="w-4 h-4 text-slate-400 -rotate-90" />
+                           </Link>
+                           <div className="flex flex-col gap-2 pl-4 border-l-2 border-slate-100 ml-1">
+                              {cat.children?.map((sub: any) => (
+                                 <Link key={sub.id} href={`/category/${sub.slug}`} className="text-slate-500 hover:text-blue-600 transition-colors text-sm py-1">
+                                    {sub.name}
+                                 </Link>
+                              ))}
+                           </div>
+                        </div>
+                     ))}
+                     <Link href="/category/deals" className="font-bold text-red-500 text-lg">Fire Deals 🔥</Link>
+                  </div>
+               </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
 
       {/* Desktop Navigation Categories */}
-      <div className="hidden md:flex justify-center border-t border-slate-100 py-3">
-        <ul className="flex space-x-8 text-sm font-medium text-slate-600">
-          {[
-            { label: "Phones & Tablets", slug: "phones-tablets" },
-            { label: "Wearables", slug: "wearables" },
-            { label: "Audio", slug: "audio" },
-            { label: "Smart Home", slug: "smart-home" },
-            { label: "Creator Gadgets", slug: "creator-gadgets" },
-            { label: "Accessories", slug: "accessories" },
-            { label: "Deals", slug: "deals" }
-          ].map((cat) => (
-             <li key={cat.slug} className={`cursor-pointer transition-colors ${cat.slug === 'deals' ? 'text-red-500 hover:text-red-600 font-semibold' : 'hover:text-blue-600'}`}>
-                <Link href={`/category/${cat.slug}`}>
-                   {cat.label}
+      <div className="hidden md:flex justify-center border-t border-slate-100 relative items-center h-[52px]">
+        <ul className="flex space-x-10 text-sm font-medium text-slate-600 h-full max-w-6xl w-full justify-center">
+          {rootCategories.map((cat) => (
+              <li 
+                key={cat.slug} 
+                className="flex items-center h-full px-2"
+                onMouseEnter={() => {
+                  if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                  setHoveredCategory(cat.slug);
+                }}
+                onMouseLeave={() => {
+                  hoverTimeoutRef.current = setTimeout(() => setHoveredCategory(null), 150);
+                }}
+              >
+                <Link href={`/category/${cat.slug}`} className={`cursor-pointer flex items-center gap-1.5 transition-colors uppercase tracking-wider text-xs font-bold h-full ${hoveredCategory === cat.slug ? 'text-blue-600' : 'hover:text-blue-600'}`}>
+                   {cat.icon && <span className="text-base">{cat.icon}</span>}
+                   {cat.name}
+                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${hoveredCategory === cat.slug ? 'rotate-180' : ''}`} />
                 </Link>
+                <AnimatePresence>
+                  {hoveredCategory === cat.slug && <MegaMenu category={cat} />}
+                </AnimatePresence>
              </li>
           ))}
+          <li className="flex items-center h-full">
+             <Link href="/category/deals" className="flex items-center gap-1.5 text-red-500 hover:text-red-600 font-bold animate-pulse">
+                Deals 🏷️
+             </Link>
+          </li>
         </ul>
       </div>
     </header>

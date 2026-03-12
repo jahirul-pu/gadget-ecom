@@ -19,15 +19,17 @@ import {
   ShoppingBag,
   Bell,
   Search,
+  Briefcase,
+  Building2,
   ArrowRight,
   Plus,
   Trash2,
   Edit2,
   Home,
-  Briefcase,
-  Building2,
+  Printer,
+  ChevronDown,
   Check,
-  Printer
+  ShoppingCart
 } from "lucide-react";
 import { OrderInvoice } from "@/components/OrderInvoice";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -307,7 +309,11 @@ export default function UserDashboardPage() {
                           <div key={order.id} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:bg-slate-50 transition-colors">
                             <div className="flex items-center gap-4">
                               <div className="w-16 h-16 bg-slate-100 rounded-xl relative overflow-hidden flex items-center justify-center shrink-0">
-                                <Image src={order.image} alt="Product" fill className="object-contain p-2" />
+                                {order.image && order.image.trim() !== "" ? (
+                                  <Image src={order.image} alt="Product" fill className="object-contain p-2" />
+                                ) : (
+                                  <ShoppingCart className="w-6 h-6 text-slate-300" />
+                                )}
                               </div>
                               <div>
                                 <h4 className="font-bold text-slate-900" title={order.id}>#{parseInt(order.id.replace(/[^0-9a-f]/gi, '').substring(0, 8), 16).toString().slice(-5).padStart(5, '0')}</h4>
@@ -500,8 +506,12 @@ export default function UserDashboardPage() {
                               </div>
                           </CardHeader>
                           <CardContent className="p-6 flex flex-col sm:flex-row gap-6 items-center">
-                             <div className="w-24 h-24 bg-slate-50 rounded-2xl border border-slate-100 shrink-0 relative flex justify-center items-center">
-                                <Image src={order.image} alt="Product" fill className="object-contain p-2" />
+                             <div className="w-24 h-24 bg-slate-50 rounded-2xl border border-slate-100 shrink-0 relative flex justify-center items-center overflow-hidden">
+                                {order.image && order.image.trim() !== "" ? (
+                                  <Image src={order.image} alt="Product" fill className="object-contain p-2" />
+                                ) : (
+                                  <ShoppingCart className="w-10 h-10 text-slate-300" />
+                                )}
                              </div>
                              <div className="flex-1 text-center sm:text-left">
                                 <Badge className={`mb-2 border-none ${
