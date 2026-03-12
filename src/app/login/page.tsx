@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
+import { useStore } from "@/store/useStore";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,10 +15,50 @@ import { Lock, User as UserIcon } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const setUser = useStore(state => state.setUser);
+  const [identity, setIdentity] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSignIn = () => {
-    toast.success("Successfully signed in!");
-    router.push("/");
+  const handleSignIn = async () => {
+    if (!identity || !password) {
+      toast.error("Please enter both identity and password");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Check for user by email OR phone
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .or(`email.eq.${identity},phone.eq.${identity}`)
+        .eq('password', password)
+        .single();
+
+      if (error || !data) {
+        toast.error("Invalid email/phone or password");
+        return;
+      }
+
+      setUser({
+        id: data.id,
+        fullName: data.full_name,
+        phone: data.phone,
+        email: data.email,
+        district: data.district,
+        area: data.area,
+        address: data.address
+      });
+
+      toast.success(`Welcome back, ${data.full_name}!`);
+      router.push("/");
+    } catch (e) {
+      console.error(e);
+      toast.error("An error occurred during sign in");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,7 +91,7 @@ export default function LoginPage() {
               <Label htmlFor="identity" className="text-slate-700 font-bold ml-1">Email or Phone</Label>
               <div className="relative">
                 <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                <Input id="identity" type="text" placeholder="john@example.com or +880..." className="pl-12 h-14 rounded-2xl bg-slate-50 border-slate-200 focus-visible:ring-blue-600 focus-visible:bg-white text-base transition-all" required />
+                <Input id="identity" type="text" value={identity} onChange={(e) => setIdentity(e.target.value)} placeholder="john@example.com or +880..." className="pl-12 h-14 rounded-2xl bg-slate-50 border-slate-200 focus-visible:ring-blue-600 focus-visible:bg-white text-base transition-all" required />
               </div>
             </div>
 
@@ -61,12 +104,12 @@ export default function LoginPage() {
               </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                <Input id="password" type="password" placeholder="••••••••" className="pl-12 h-14 rounded-2xl bg-slate-50 border-slate-200 focus-visible:ring-blue-600 focus-visible:bg-white text-base transition-all" required />
+                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="pl-12 h-14 rounded-2xl bg-slate-50 border-slate-200 focus-visible:ring-blue-600 focus-visible:bg-white text-base transition-all" required />
               </div>
             </div>
 
-            <Button onClick={handleSignIn} className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg transition-all shadow-[0_8px_30px_rgb(37,99,235,0.24)] hover:shadow-[0_8px_30px_rgb(37,99,235,0.4)] mt-4">
-              Sign In
+            <Button onClick={handleSignIn} disabled={loading} className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg transition-all shadow-[0_8px_30px_rgb(37,99,235,0.24)] hover:shadow-[0_8px_30px_rgb(37,99,235,0.4)] mt-4">
+              {loading ? "Signing in..." : "Sign In"}
             </Button>
           </CardContent>
           <CardFooter className="pb-8 justify-center mt-6 pt-6">

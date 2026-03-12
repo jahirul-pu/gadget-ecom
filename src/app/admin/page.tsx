@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/lib/supabase";
 import {
   BarChart3,
   Box,
@@ -19,8 +20,11 @@ import {
   TrendingUp,
   PackageCheck,
   UploadCloud,
-  Layers
+  Layers,
+  Printer,
+  Check
 } from "lucide-react";
+import { OrderInvoice } from "@/components/OrderInvoice";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +59,61 @@ export default function AdminPanelPage() {
   const updateProduct = useStore(state => state.updateProduct);
   const removeProduct = useStore(state => state.removeProduct);
   const orders = useStore(state => state.orders);
+  const updateOrderStatus = useStore(state => state.updateOrderStatus);
+  const [orderStatusFilter, setOrderStatusFilter] = useState("All");
+
+  // Users state
+  const [users, setUsers] = useState<any[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [userAddresses, setUserAddresses] = useState<any[]>([]);
+  const [isUserViewOpen, setIsUserViewOpen] = useState(false);
+  const [selectedOrderForPrint, setSelectedOrderForPrint] = useState<any | null>(null);
+
+  const viewCustomerData = async (user: any) => {
+    setSelectedUser(user);
+    const { data } = await supabase.from('user_addresses').select('*').eq('user_id', user.id);
+    setUserAddresses(data || []);
+    setIsUserViewOpen(true);
+  };
+
+  useEffect(() => {
+    if (activeTab === "customers") {
+      setUsersLoading(true);
+      supabase.from('users').select('*').order('created_at', { ascending: false }).then(({ data }) => {
+        setUsers(data || []);
+        setUsersLoading(false);
+      });
+    }
+  }, [activeTab]);
+
+  const handlePrintInvoice = (orderId: string) => {
+    const printContent = document.getElementById(`invoice-${orderId}`);
+    if (!printContent) return;
+
+    const winPrint = window.open('', '', 'left=0,top=0,width=800,height=900,toolbar=0,scrollbars=0,status=0');
+    if (!winPrint) return;
+
+    winPrint.document.write(`
+      <html>
+        <head>
+          <title>Invoice - ${orderId}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @media print {
+              .no-print { display: none; }
+              body { padding: 0; margin: 0; }
+            }
+          </style>
+        </head>
+        <body onload="window.print();window.close()">
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `);
+    winPrint.document.close();
+    winPrint.focus();
+  };
 
   // Form State
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
@@ -489,7 +548,7 @@ export default function AdminPanelPage() {
                     <TableBody>
                       {products.map((product) => (
                         <TableRow key={product.id} className="border-slate-100 hover:bg-slate-50/50 transition-colors">
-                          <TableCell className="px-6 font-medium text-slate-500 text-xs">{product.id}</TableCell>
+                          <TableCell className="px-6 font-medium text-slate-500 text-xs font-mono" title={product.id}>#{parseInt(product.id.replace(/-/g, '').substring(0, 8), 16).toString().slice(-5).padStart(5, '0')}</TableCell>
                           <TableCell>
                             <div className="font-semibold text-slate-900">{product.name}</div>
                           </TableCell>
@@ -524,16 +583,16 @@ export default function AdminPanelPage() {
                               <DropdownMenuContent align="end" className="w-[160px] rounded-xl">
                                 <DropdownMenuGroup>
                                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                  <DropdownMenuItem onClick={() => { setEditProduct(product); setIsEditProductOpen(true); }}>Edit Details</DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => { setEditProduct(product); setIsEditProductOpen(true); }}>Update Stock</DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem className="text-red-600 cursor-pointer focus:bg-red-50 focus:text-red-700" onClick={() => {
-                                      removeProduct(product.id);
-                                      toast.success(`${product.name} has been deleted.`);
-                                  }}>
-                                    Delete Product
-                                  </DropdownMenuItem>
                                 </DropdownMenuGroup>
+                                <DropdownMenuItem onClick={() => { setEditProduct(product); setIsEditProductOpen(true); }}>Edit Details</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => { setEditProduct(product); setIsEditProductOpen(true); }}>Update Stock</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-red-600 cursor-pointer focus:bg-red-50 focus:text-red-700" onClick={() => {
+                                    removeProduct(product.id);
+                                    toast.success(`${product.name} has been deleted.`);
+                                }}>
+                                  Delete Product
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -546,8 +605,218 @@ export default function AdminPanelPage() {
             </motion.div>
           )}
 
+          {/* CUSTOMERS TAB */}
+          {activeTab === "customers" && (
+            <motion.div key="customers" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
+                <CardHeader className="bg-white border-b border-slate-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <CardTitle className="text-lg">Registered Users</CardTitle>
+                      <CardDescription className="mt-1">{users.length} total users</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {usersLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  ) : users.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                      <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mb-4">
+                        <Users className="w-8 h-8" />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900 mb-1">No users yet</h3>
+                      <p className="text-slate-500 text-sm max-w-xs">Users will appear here when they create an account on the store.</p>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader className="bg-slate-50/50">
+                        <TableRow className="border-slate-100">
+                          <TableHead className="px-6">Name</TableHead>
+                          <TableHead>Contact</TableHead>
+                          <TableHead>Location Details</TableHead>
+                          <TableHead>Joined Date</TableHead>
+                          <TableHead className="text-right px-6">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {users.map((user) => (
+                          <TableRow key={user.id} className="border-slate-100 hover:bg-slate-50/50 transition-colors group">
+                            <TableCell className="px-6">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-tr from-slate-900 to-slate-700 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 border-2 border-slate-50 shadow-sm">
+                                  {user.full_name?.charAt(0)?.toUpperCase() || "U"}
+                                </div>
+                                <div>
+                                  <div className="font-bold text-slate-900">{user.full_name}</div>
+                                  <div className="text-[10px] text-slate-400 font-mono">#{user.id.substring(0, 8)}</div>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium text-slate-900 text-sm">{user.phone}</div>
+                              <div className="text-slate-500 text-xs">{user.email || 'no-email@store.com'}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm text-slate-900 font-medium">{user.district || "N/A"}, {user.area || ""}</div>
+                              <div className="text-xs text-slate-500 line-clamp-1 max-w-[200px]" title={user.address}>{user.address || "No full address provided"}</div>
+                            </TableCell>
+                            <TableCell className="text-slate-600 text-sm">{new Date(user.created_at).toLocaleDateString('en-GB')}</TableCell>
+                             <TableCell className="text-right px-6">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="rounded-xl h-8 text-xs font-bold border-slate-200"
+                                  onClick={() => viewCustomerData(user)}
+                                >
+                                  View Data
+                                </Button>
+                             </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* ORDERS TAB */}
+          {activeTab === "orders" && (
+            <motion.div key="orders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
+                <CardHeader className="bg-white border-b border-slate-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <CardTitle className="text-lg">Shop Orders</CardTitle>
+                      <CardDescription className="mt-1">{orders.length} total transactions</CardDescription>
+                    </div>
+                    <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
+                      {["All", "Pending", "Processing", "Shipped", "Delivered", "Cancelled"].map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setOrderStatusFilter(s)}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                            orderStatusFilter === s
+                              ? "bg-white text-blue-600 shadow-sm"
+                              : "text-slate-500 hover:text-slate-700"
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {orders.filter(o => orderStatusFilter === "All" || o.status === orderStatusFilter).length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                      <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mb-4">
+                        <ShoppingCart className="w-8 h-8" />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900 mb-1">No {orderStatusFilter !== "All" ? orderStatusFilter.toLowerCase() : ""} orders</h3>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader className="bg-slate-50/50">
+                        <TableRow className="border-slate-100">
+                          <TableHead className="px-6">Order ID</TableHead>
+                          <TableHead>Customer</TableHead>
+                          <TableHead>Items</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Payment</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right px-6">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {orders.filter(o => orderStatusFilter === "All" || o.status === orderStatusFilter).map((order) => (
+                          <TableRow key={order.id} className="border-slate-100 hover:bg-slate-50/50 transition-colors">
+                            <TableCell className="px-6 font-mono text-xs font-medium text-slate-500" title={order.id}>#{parseInt(order.id.replace(/[^0-9a-f]/gi, '').substring(0, 8), 16).toString().slice(-5).padStart(5, '0')}</TableCell>
+                            <TableCell>
+                              <div className="font-semibold text-slate-900">{order.customer}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="max-w-[200px]">
+                                {order.orderItems && order.orderItems.length > 0 ? (
+                                  <div className="space-y-0.5">
+                                    {order.orderItems.slice(0, 2).map((item: any, idx: number) => (
+                                      <div key={idx} className="text-xs text-slate-700 truncate">
+                                        <span className="font-semibold">{item.name}</span>
+                                        {item.quantity > 1 && <span className="text-slate-400"> ×{item.quantity}</span>}
+                                      </div>
+                                    ))}
+                                    {order.orderItems.length > 2 && (
+                                      <span className="text-[10px] text-slate-400 font-medium">+{order.orderItems.length - 2} more</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-slate-400">{order.items} item(s)</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-bold text-slate-900">৳{order.total.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-600 text-sm">{order.payment}</TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger render={<Button variant="ghost" className="p-0 h-auto hover:bg-transparent" />}>
+                                    <Badge className={`border-none cursor-pointer hover:opacity-80 transition-opacity ${
+                                      order.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 
+                                      (order.status === 'Shipped' || order.status === 'Sent') ? 'bg-purple-100 text-purple-700' : 
+                                      order.status === 'Processing' ? 'bg-blue-100 text-blue-700' : 
+                                      order.status === 'Pending' ? 'bg-amber-100 text-amber-700' : 
+                                      order.status === 'Cancelled' ? 'bg-rose-100 text-rose-700' :
+                                      'bg-slate-100 text-slate-700'
+                                    }`}>
+                                      {order.status === 'Sent' ? 'Shipped' : order.status}
+                                    </Badge>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-40 rounded-xl">
+                                  <DropdownMenuGroup>
+                                    <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+                                  </DropdownMenuGroup>
+                                  <DropdownMenuSeparator />
+                                  {["Pending", "Processing", "Shipped", "Delivered", "Cancelled"].map((s) => (
+                                    <DropdownMenuItem key={s} onClick={() => updateOrderStatus(order.id, s)}>
+                                      {s}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                            <TableCell className="text-slate-500 text-sm">
+                              {order.date}
+                            </TableCell>
+                            <TableCell className="text-right px-6">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => {
+                                  setSelectedOrderForPrint(order);
+                                  setTimeout(() => handlePrintInvoice(order.id), 100);
+                                }}
+                                className="rounded-xl h-8 text-xs font-bold border-slate-200 hover:bg-slate-50 flex items-center gap-2 ml-auto"
+                              >
+                                <Printer className="w-3 h-3" />
+                                Invoice
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
           {/* PLACEHOLDER FOR OTHER TABS */}
-          {activeTab !== "overview" && activeTab !== "products" && (
+          {activeTab !== "overview" && activeTab !== "products" && activeTab !== "customers" && activeTab !== "orders" && (
             <motion.div key="placeholder" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col items-center justify-center min-h-[500px] bg-white rounded-3xl border border-slate-100 shadow-sm">
               <div className="w-24 h-24 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mb-6">
                 {activeTab === "categories" && <Layers className="w-10 h-10" />}
@@ -562,9 +831,179 @@ export default function AdminPanelPage() {
               <Button variant="outline" onClick={() => setActiveTab("overview")} className="rounded-xl font-semibold border-slate-200">Return to Overview</Button>
             </motion.div>
           )}
+
+          {/* CUSTOMER DATA MODAL */}
+          <Dialog open={isUserViewOpen} onOpenChange={setIsUserViewOpen}>
+            <DialogContent className="max-w-[95vw] sm:max-w-[95vw] xl:max-w-[1400px] w-full rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl bg-white focus:outline-none">
+              {selectedUser && (
+                <>
+                  <div className="bg-slate-900 p-8 text-white relative">
+                    <div className="flex items-center gap-6">
+                      <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center text-3xl font-bold shadow-xl shadow-blue-500/20">
+                        {selectedUser.full_name?.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold">{selectedUser.full_name}</h2>
+                        <p className="text-slate-400 font-mono text-sm mt-1">ID: {selectedUser.id}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-8 space-y-8 max-h-[85vh] overflow-y-auto bg-slate-50/30">
+                    {/* TOP HORIZONTAL ROW: PROFILE, STATUS, STATS */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                      {/* 1. BASIC INFO */}
+                      <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4 flex flex-col items-start min-h-0 w-full overflow-hidden">
+                        <Label className="text-slate-400 uppercase text-[10px] font-black tracking-widest leading-none block mb-2">Contact Info</Label>
+                        <div className="space-y-4 w-full">
+                          <div className="flex items-center gap-4">
+                             <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100"><Users className="w-5 h-5 text-blue-500" /></div>
+                             <div className="min-w-0 flex-1">
+                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">Phone Number</p>
+                               <p className="font-bold text-slate-900 truncate tracking-tight">{selectedUser.phone || 'N/A'}</p>
+                             </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                             <div className="w-10 h-10 rounded-2xl bg-cyan-50 flex items-center justify-center shrink-0 border border-cyan-100"><MessageSquare className="w-5 h-5 text-cyan-500" /></div>
+                             <div className="min-w-0 flex-1">
+                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">Primary Email</p>
+                               <p className="font-extrabold text-slate-900 truncate" title={selectedUser.email}>{selectedUser.email || 'N/A'}</p>
+                             </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 2. ACCOUNT STATUS */}
+                      <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4 flex flex-col items-start min-h-0 w-full overflow-hidden">
+                        <Label className="text-slate-400 uppercase text-[10px] font-black tracking-widest leading-none block mb-2">Account Lifecycle</Label>
+                        <div className="space-y-4 w-full">
+                           <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-500">Registered On</span>
+                              <span className="text-xs font-black text-slate-900 text-right">{new Date(selectedUser.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                           </div>
+                           <div className="py-3 px-4 bg-emerald-50 border border-emerald-100 rounded-[1.5rem] flex items-center justify-between w-full">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
+                                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Status</span>
+                              </div>
+                              <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider text-right">Active Customer</span>
+                           </div>
+                        </div>
+                      </div>
+
+                      {/* 3. LIFECYCLE STATS */}
+                      <div className="bg-slate-900 p-6 rounded-[2rem] shadow-xl shadow-slate-900/10 text-white flex flex-col items-start min-h-0 w-full overflow-hidden">
+                        <Label className="text-white/40 uppercase text-[10px] font-black tracking-widest leading-none block mb-4">Commercial Value</Label>
+                        <div className="w-full">
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">Total Lifetime Revenue</p>
+                          <p className="text-3xl font-black text-white leading-none truncate overflow-hidden text-ellipsis">৳{orders.filter(o => o.customer === selectedUser.full_name).reduce((sum, o) => sum + o.total, 0).toLocaleString()}</p>
+                        </div>
+                        <div className="pt-4 mt-4 border-t border-white/10 grid grid-cols-2 gap-4 w-full">
+                           <div className="min-w-0">
+                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-1 truncate">Total Orders</p>
+                             <p className="text-xl font-black truncate">{orders.filter(o => o.customer === selectedUser.full_name).length}</p>
+                           </div>
+                           <div className="text-right min-w-0">
+                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-1 truncate">AOV</p>
+                             <p className="text-xl font-black truncate">৳{orders.filter(o => o.customer === selectedUser.full_name).length > 0 ? (orders.filter(o => o.customer === selectedUser.full_name).reduce((sum, o) => sum + o.total, 0) / orders.filter(o => o.customer === selectedUser.full_name).length).toFixed(0) : '0'}</p>
+                           </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* BOTTOM ROW: MAIN CONTENT (LEFT) & SECONDARY (RIGHT) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                      {/* ORDER HISTORY */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between px-2">
+                           <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 pb-2 border-b-2 border-slate-900">
+                             Transaction History
+                           </h3>
+                        </div>
+                        <div className="space-y-3">
+                           {orders.filter(o => o.customer === selectedUser.full_name).length === 0 ? (
+                             <div className="py-24 flex flex-col items-center justify-center bg-white rounded-[2.5rem] border border-slate-100">
+                               <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4"><ShoppingCart className="w-8 h-8 text-slate-200" /></div>
+                               <p className="text-slate-400 font-bold">No purchase history found</p>
+                             </div>
+                           ) : (
+                             orders.filter(o => o.customer === selectedUser.full_name).map(order => (
+                               <div key={order.id} className="bg-white p-4 border border-slate-100 rounded-[1.5rem] flex items-center gap-4 hover:shadow-md transition-all group">
+                                  <div className="w-16 h-16 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center p-2 shrink-0 relative overflow-hidden">
+                                     <Image src={order.image} alt="Product" fill className="object-contain p-2 group-hover:scale-110 transition-transform" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                     <div className="flex justify-between items-center mb-1">
+                                        <span className="font-black text-slate-900 text-base">৳{order.total.toLocaleString()}</span>
+                                        <Badge className={`text-[9px] font-black px-2 py-0.5 rounded-md border-none ${
+                                          order.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 
+                                          order.status === 'Cancelled' ? 'bg-rose-100 text-rose-700' :
+                                          'bg-blue-100 text-blue-700'
+                                        }`}>{order.status.toUpperCase()}</Badge>
+                                     </div>
+                                     <div className="flex items-center gap-3">
+                                        <span className="text-[11px] font-bold text-slate-400">{order.date}</span>
+                                        <span className="text-[11px] font-black text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">{order.items} ITEMS</span>
+                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter">{order.payment}</span>
+                                     </div>
+                                  </div>
+                               </div>
+                             ))
+                           )}
+                        </div>
+                      </div>
+
+                      {/* DELIVERY ADDRESSES */}
+                      <div className="space-y-4">
+                        <div className="px-2">
+                           <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 pb-2 border-b-2 border-slate-200">
+                             Saved Addresses
+                           </h3>
+                        </div>
+                        <div className="space-y-4">
+                          {userAddresses.length === 0 ? (
+                            <div className="p-12 bg-slate-100/50 rounded-[2.5rem] border border-dashed border-slate-200 text-center text-slate-400 font-bold text-sm">No addresses saved</div>
+                          ) : (
+                            userAddresses.map(addr => (
+                              <div key={addr.id} className={`bg-white p-5 rounded-[1.5rem] border-2 transition-all ${addr.is_default ? 'border-blue-600 shadow-lg shadow-blue-600/5' : 'border-slate-50 shadow-sm'}`}>
+                                <div className="flex justify-between items-center mb-4">
+                                   <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${
+                                     addr.category === 'Home' ? 'bg-blue-100 text-blue-700' :
+                                     addr.category === 'Office' ? 'bg-amber-100 text-amber-700' :
+                                     'bg-purple-100 text-purple-700'
+                                   }`}>{addr.category}</span>
+                                   {addr.is_default && <span className="text-[10px] font-black text-blue-600 flex items-center gap-1.5"><Check className="w-4 h-4" /> DEFAULT</span>}
+                                </div>
+                                <p className="font-black text-slate-900 text-sm leading-tight">{addr.full_address}</p>
+                                <p className="text-slate-400 text-[11px] font-bold mt-2 uppercase tracking-tight">{addr.area}, {addr.district}</p>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <DialogFooter className="p-6 bg-slate-50 border-t border-slate-100">
+                    <Button onClick={() => setIsUserViewOpen(false)} className="rounded-xl w-full py-6 font-bold bg-slate-900 hover:bg-slate-800 transition-all">Close User Profile</Button>
+                  </DialogFooter>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
         </AnimatePresence>
 
       </main>
+
+      {/* Hidden Invoice Components for Printing */}
+      <div className="hidden print-invoice-container">
+        {selectedOrderForPrint ? (
+          <OrderInvoice order={selectedOrderForPrint} />
+        ) : (
+          orders.map(order => (
+            <OrderInvoice key={order.id} order={order} />
+          ))
+        )}
+      </div>
     </div>
   );
 }

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, ShieldCheck, MapPin, Truck,  Wallet, CreditCard, Ban, Trash2, Plus, Minus } from "lucide-react";
+import { ArrowLeft, ArrowRight, ShieldCheck, MapPin, Truck, Wallet, CreditCard, Ban, Trash2, Plus, Minus, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -13,16 +13,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { bdDistricts } from "@/lib/locations";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 import { useStore } from "@/store/useStore";
 
 export default function CheckoutPage() {
+  const [mounted, setMounted] = useState(false);
   const cartItems = useStore(state => state.cart);
   const clearCart = useStore(state => state.clearCart);
   const addOrder = useStore(state => state.addOrder);
   const updateCartQuantity = useStore(state => state.updateCartQuantity);
   const removeFromCart = useStore(state => state.removeFromCart);
+  const _hasHydrated = useStore(state => state._hasHydrated);
 
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState("bkash");
@@ -32,6 +35,81 @@ export default function CheckoutPage() {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const user = useStore(state => state.user);
+  const addresses = useStore(state => state.addresses);
+  const fetchAddresses = useStore(state => state.fetchAddresses);
+  
+  const [useSavedAddress, setUseSavedAddress] = useState(true);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  // Load step and form state from localStorage on mount
+  useEffect(() => {
+    setMounted(true);
+    const savedStep = localStorage.getItem('checkout_step');
+    if (savedStep) setStep(parseInt(savedStep));
+
+    const savedForm = localStorage.getItem('checkout_form');
+    if (savedForm) {
+      try {
+        const form = JSON.parse(savedForm);
+        setFullName(form.fullName || "");
+        setPhone(form.phone || "");
+        setAddress(form.address || "");
+        setSelectedDistrict(form.district || "");
+        setSelectedArea(form.area || "");
+        setUseSavedAddress(form.useSavedAddress ?? true);
+        setSelectedAddressId(form.selectedAddressId || null);
+      } catch (e) {}
+    }
+    setIsInitializing(false);
+  }, []);
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    if (!mounted) return;
+    localStorage.setItem('checkout_step', step.toString());
+    localStorage.setItem('checkout_form', JSON.stringify({
+      fullName, phone, address, district: selectedDistrict, area: selectedArea, useSavedAddress, selectedAddressId
+    }));
+  }, [step, fullName, phone, address, selectedDistrict, selectedArea, useSavedAddress, selectedAddressId, mounted]);
+
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchAddresses(user.id);
+      setFullName(user.fullName || "");
+      setPhone(user.phone?.replace("+880", "") || "");
+    }
+  }, [user, fetchAddresses]);
+
+  useEffect(() => {
+    // Only auto-fill if we just loaded from saved addresses and haven't manually edited
+    if (addresses.length > 0 && useSavedAddress && !selectedAddressId) {
+      const defaultAddr = addresses.find(a => a.isDefault) || addresses[0];
+      setSelectedAddressId(defaultAddr.id);
+      setAddress(defaultAddr.fullAddress);
+      setSelectedDistrict(defaultAddr.district);
+      setSelectedArea(defaultAddr.area);
+    } else if (!useSavedAddress || addresses.length === 0) {
+      // Clear fields if not using saved or no addresses
+      if (!user) {
+        setAddress("");
+        setSelectedDistrict("");
+        setSelectedArea("");
+      }
+    }
+  }, [addresses, useSavedAddress, user]);
+
+  const handleSavedAddressChange = (id: string) => {
+    setSelectedAddressId(id);
+    const addr = addresses.find(a => a.id === id);
+    if (addr) {
+      setAddress(addr.fullAddress);
+      setSelectedDistrict(addr.district);
+      setSelectedArea(addr.area);
+    }
+  };
 
   const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const isOutsideDhakaCity = ["Dhamrai", "Dohar", "Keraniganj", "Nawabganj", "Savar"].includes(selectedArea);
@@ -61,6 +139,9 @@ export default function CheckoutPage() {
     setErrors({});
     setStep(2);
   };
+
+
+  if (!mounted || !_hasHydrated || isInitializing) return null;
 
   if (cartItems.length === 0) {
     return (
@@ -129,68 +210,73 @@ export default function CheckoutPage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 bg-white space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="fullName" className={errors.fullName ? "text-red-500" : ""}>Full Name</Label>
-                        <Input id="fullName" value={fullName} onChange={e => { setFullName(e.target.value); if (errors.fullName) setErrors({ ...errors, fullName: "" }); }} placeholder="Fahim Rahman" className={`h-12 bg-slate-50 border-slate-200 rounded-xl ${errors.fullName ? 'border-red-500 focus-visible:ring-red-500' : ''}`} />
-                        {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="phone" className={errors.phone ? "text-red-500" : ""}>Phone Number (Required for OTP)</Label>
-                        <div className="flex">
-                          <span className={`inline-flex items-center px-4 rounded-l-xl border border-r-0 border-slate-200 bg-slate-100 text-slate-500 font-medium ${errors.phone ? 'border-red-500 text-red-500' : ''}`}>
-                            +880
-                          </span>
-                          <Input id="phone" value={phone} onChange={e => { setPhone(e.target.value); if (errors.phone) setErrors({ ...errors, phone: "" }); }} placeholder="017XX XXXXXX" className={`h-12 rounded-l-none bg-slate-50 border-slate-200 rounded-r-xl font-medium tracking-wider ${errors.phone ? 'border-red-500 focus-visible:ring-red-500' : ''}`} />
+                      {user && addresses.length > 0 ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <Label className="text-slate-900 font-bold">Choose Delivery Address</Label>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setUseSavedAddress(!useSavedAddress)}
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-8 font-bold"
+                            >
+                              {useSavedAddress ? "Use different address" : "Use saved address"}
+                            </Button>
+                          </div>
+
+                          {useSavedAddress ? (
+                            <div className="grid gap-3">
+                              {addresses.map((addr) => (
+                                <div 
+                                  key={addr.id} 
+                                  onClick={() => handleSavedAddressChange(addr.id)}
+                                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 ${
+                                    selectedAddressId === addr.id 
+                                      ? 'border-blue-600 bg-blue-50/50' 
+                                      : 'border-slate-100 hover:border-slate-200 bg-slate-50/30'
+                                  }`}
+                                >
+                                  <div className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedAddressId === addr.id ? 'border-blue-600 bg-blue-600' : 'border-slate-300'}`}>
+                                    {selectedAddressId === addr.id && <div className="w-2 h-2 rounded-full bg-white" />}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="font-bold text-slate-900">{addr.category}</span>
+                                      {addr.isDefault && <Badge className="bg-blue-600 text-white border-none text-[8px] h-4 font-bold">DEFAULT</Badge>}
+                                    </div>
+                                    <p className="text-sm text-slate-700 leading-snug">{addr.fullAddress}</p>
+                                    <p className="text-xs text-slate-500 mt-1 font-medium">{addr.area}, {addr.district}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                               <AddressFormFields 
+                                 fullName={fullName} setFullName={setFullName}
+                                 phone={phone} setPhone={setPhone}
+                                 address={address} setAddress={setAddress}
+                                 selectedDistrict={selectedDistrict} setSelectedDistrict={setSelectedDistrict}
+                                 selectedArea={selectedArea} setSelectedArea={setSelectedArea}
+                                 errors={errors} setErrors={setErrors}
+                               />
+                            </div>
+                          )}
                         </div>
-                        {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="address" className={errors.address ? "text-red-500" : ""}>Detailed Delivery Address</Label>
-                        <Input id="address" value={address} onChange={e => { setAddress(e.target.value); if (errors.address) setErrors({ ...errors, address: "" }); }} placeholder="House 12, Road 4, Block C, Banani" className={`h-12 bg-slate-50 border-slate-200 rounded-xl ${errors.address ? 'border-red-500 focus-visible:ring-red-500' : ''}`} />
-                        {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
-                      </div>
-
-                      <div className="grid md:grid-cols-2 gap-4 relative z-50">
-                        <div className="space-y-2 relative">
-                          <Label className={`font-medium ${errors.district ? "text-red-500" : "text-slate-900"}`}>City / District</Label>
-                          <Select onValueChange={(val) => { setSelectedDistrict(val as string); if (errors.district) setErrors({ ...errors, district: "" }); }}>
-                            <SelectTrigger className={`h-12 w-full rounded-xl bg-slate-50 border border-slate-200 focus-visible:ring-blue-600 focus-visible:bg-white text-slate-900 ${errors.district ? 'border-red-500' : ''}`}>
-                              <SelectValue placeholder="Select District" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white border-slate-100 shadow-xl rounded-xl">
-                              <SelectGroup>
-                                {Object.keys(bdDistricts).map((district) => (
-                                  <SelectItem key={district} className="hover:bg-slate-50 cursor-pointer text-slate-900" value={district}>{district}</SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
-                          {errors.district && <p className="text-red-500 text-sm mt-1">{errors.district}</p>}
+                      ) : (
+                        <div className="space-y-4">
+                           <AddressFormFields 
+                             fullName={fullName} setFullName={setFullName}
+                             phone={phone} setPhone={setPhone}
+                             address={address} setAddress={setAddress}
+                             selectedDistrict={selectedDistrict} setSelectedDistrict={setSelectedDistrict}
+                             selectedArea={selectedArea} setSelectedArea={setSelectedArea}
+                             errors={errors} setErrors={setErrors}
+                           />
                         </div>
+                      )}
 
-                        <div className="space-y-2 relative">
-                          <Label className={`font-medium ${errors.area ? "text-red-500" : "text-slate-900"}`}>Area / Upazila</Label>
-                          <Select disabled={!selectedDistrict} onValueChange={(val) => { setSelectedArea(val as string); if (errors.area) setErrors({ ...errors, area: "" }); }}>
-                            <SelectTrigger className={`h-12 w-full rounded-xl bg-slate-50 border border-slate-200 focus-visible:ring-blue-600 focus-visible:bg-white text-slate-900 disabled:opacity-50 ${errors.area ? 'border-red-500' : ''}`}>
-                              <SelectValue placeholder={selectedDistrict ? "Select Area" : "Select District First"} />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white border-slate-100 shadow-xl rounded-xl">
-                              {selectedDistrict && bdDistricts[selectedDistrict] && (
-                                <SelectGroup>
-                                  {bdDistricts[selectedDistrict].map((area) => (
-                                    <SelectItem key={area} className="hover:bg-slate-50 cursor-pointer text-slate-900" value={area}>{area}</SelectItem>
-                                  ))}
-                                </SelectGroup>
-                              )}
-                            </SelectContent>
-                          </Select>
-                          {errors.area && <p className="text-red-500 text-sm mt-1">{errors.area}</p>}
-                        </div>
-                      </div>
-
-                      {selectedDistrict && (
+                      {(selectedDistrict || (useSavedAddress && selectedAddressId)) && (
                         <div className="pt-4 mt-4 border-t border-slate-100">
                           <div className="flex items-center justify-between text-sm">
                             <div className="flex items-center gap-2 text-slate-600">
@@ -312,24 +398,42 @@ export default function CheckoutPage() {
                       Back
                     </Button>
                     <Button onClick={async () => {
-                      await addOrder({
-                        id: "", // Generated by backend
-                        customer: "Guest Customer",
-                        date: "",
-                        total: total,
-                        status: "Processing",
-                        payment: "Card",
-                        items: cartItems.length,
-                        image: cartItems[0]?.image || ""
-                      });
-                      toast.success("Order Placed Successfully!");
-                      clearCart();
-                      setTimeout(() => {
-                        window.location.href = "/dashboard";
-                      }, 1000);
+                      try {
+                        await addOrder({
+                          id: "", // Generated by backend
+                          customer: fullName || "Guest Customer",
+                          date: "",
+                          total: total,
+                          status: "Processing",
+                          payment: paymentMethod === 'bkash' ? 'bKash' : paymentMethod === 'nagad' ? 'Nagad' : paymentMethod === 'card' ? 'Online Payment' : 'Cash on Delivery',
+                          items: cartItems.length,
+                          image: cartItems[0]?.image || "",
+                          phone: `+880${phone}`,
+                          address: address,
+                          district: selectedDistrict,
+                          area: selectedArea,
+                          orderItems: cartItems.map(item => ({
+                            id: item.productId,
+                            name: item.name,
+                            variant: item.variant,
+                            price: item.price,
+                            quantity: item.quantity,
+                            image: item.image
+                          }))
+                        });
+                        toast.success("Order Placed Successfully!");
+                        clearCart();
+                        localStorage.removeItem('checkout_step');
+                        localStorage.removeItem('checkout_form');
+                        setTimeout(() => {
+                          window.location.href = "/dashboard";
+                        }, 1000);
+                      } catch (e: any) {
+                        toast.error(e?.message || "Failed to place order. Please try again.");
+                      }
                     }} size="lg" className="flex-1 h-14 bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg rounded-xl shadow-lg shadow-blue-600/20 group">
                       Confirm & Pay ৳{total.toLocaleString()}
-                      <CheckIcon className="w-5 h-5 ml-2" />
+                      <Check className="w-5 h-5 ml-2" />
                     </Button>
                   </div>
                 </motion.div>
@@ -421,6 +525,82 @@ export default function CheckoutPage() {
   );
 }
 
+interface AddressFormProps {
+  fullName: string; setFullName: any;
+  phone: string; setPhone: any;
+  address: string; setAddress: any;
+  selectedDistrict: string; setSelectedDistrict: any;
+  selectedArea: string; setSelectedArea: any;
+  errors: any; setErrors: any;
+}
+
+function AddressFormFields({ fullName, setFullName, phone, setPhone, address, setAddress, selectedDistrict, setSelectedDistrict, selectedArea, setSelectedArea, errors, setErrors }: AddressFormProps) {
+  return (
+    <>
+      <div className="space-y-2">
+        <Label htmlFor="fullName" className={errors.fullName ? "text-red-500" : ""}>Full Name</Label>
+        <Input id="fullName" value={fullName} onChange={e => { setFullName(e.target.value); if (errors.fullName) setErrors({ ...errors, fullName: "" }); }} placeholder="Fahim Rahman" className={`h-12 bg-slate-50 border-slate-200 rounded-xl ${errors.fullName ? 'border-red-500 focus-visible:ring-red-500' : ''}`} />
+        {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="phone" className={errors.phone ? "text-red-500" : ""}>Phone Number (Required for OTP)</Label>
+        <div className="flex">
+          <span className={`inline-flex items-center px-4 rounded-l-xl border border-r-0 border-slate-200 bg-slate-100 text-slate-500 font-medium ${errors.phone ? 'border-red-500 text-red-500' : ''}`}>
+            +880
+          </span>
+          <Input id="phone" value={phone} onChange={e => { setPhone(e.target.value); if (errors.phone) setErrors({ ...errors, phone: "" }); }} placeholder="017XX XXXXXX" className={`h-12 rounded-l-none bg-slate-50 border-slate-200 rounded-r-xl font-medium tracking-wider ${errors.phone ? 'border-red-500 focus-visible:ring-red-500' : ''}`} />
+        </div>
+        {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="address" className={errors.address ? "text-red-500" : ""}>Detailed Delivery Address</Label>
+        <Input id="address" value={address} onChange={e => { setAddress(e.target.value); if (errors.address) setErrors({ ...errors, address: "" }); }} placeholder="House 12, Road 4, Block C, Banani" className={`h-12 bg-slate-50 border-slate-200 rounded-xl ${errors.address ? 'border-red-500 focus-visible:ring-red-500' : ''}`} />
+        {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4 relative z-50">
+        <div className="space-y-2 relative">
+          <Label className={`font-medium ${errors.district ? "text-red-500" : "text-slate-900"}`}>City / District</Label>
+          <Select value={selectedDistrict || undefined} onValueChange={(val) => { setSelectedDistrict(val as string); if (errors.district) setErrors({ ...errors, district: "" }); }}>
+            <SelectTrigger className={`h-12 w-full rounded-xl bg-slate-50 border border-slate-200 focus-visible:ring-blue-600 focus-visible:bg-white text-slate-900 ${errors.district ? 'border-red-500' : ''}`}>
+              <SelectValue placeholder="Select District" />
+            </SelectTrigger>
+            <SelectContent className="bg-white border-slate-100 shadow-xl rounded-xl">
+              <SelectGroup>
+                {Object.keys(bdDistricts).map((district) => (
+                  <SelectItem key={district} className="hover:bg-slate-50 cursor-pointer text-slate-900" value={district}>{district}</SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          {errors.district && <p className="text-red-500 text-sm mt-1">{errors.district}</p>}
+        </div>
+
+        <div className="space-y-2 relative">
+          <Label className={`font-medium ${errors.area ? "text-red-500" : "text-slate-900"}`}>Area / Upazila</Label>
+          <Select value={selectedArea || undefined} disabled={!selectedDistrict} onValueChange={(val) => { setSelectedArea(val as string); if (errors.area) setErrors({ ...errors, area: "" }); }}>
+            <SelectTrigger className={`h-12 w-full rounded-xl bg-slate-50 border border-slate-200 focus-visible:ring-blue-600 focus-visible:bg-white text-slate-900 disabled:opacity-50 ${errors.area ? 'border-red-500' : ''}`}>
+              <SelectValue placeholder={selectedDistrict ? "Select Area" : "Select District First"} />
+            </SelectTrigger>
+            <SelectContent className="bg-white border-slate-100 shadow-xl rounded-xl">
+              {selectedDistrict && bdDistricts[selectedDistrict] && (
+                <SelectGroup>
+                  {bdDistricts[selectedDistrict].map((area) => (
+                    <SelectItem key={area} className="hover:bg-slate-50 cursor-pointer text-slate-900" value={area}>{area}</SelectItem>
+                  ))}
+                </SelectGroup>
+              )}
+            </SelectContent>
+          </Select>
+          {errors.area && <p className="text-red-500 text-sm mt-1">{errors.area}</p>}
+        </div>
+      </div>
+    </>
+  );
+}
+
 function CheckIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -439,3 +619,4 @@ function CheckIcon(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
+

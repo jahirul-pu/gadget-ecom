@@ -10,10 +10,25 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuGroup,
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { useStore } from "@/store/useStore";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const isAdminPage = pathname?.startsWith("/admin");
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -24,6 +39,8 @@ export default function Navbar() {
   const cart = useStore(state => state.cart);
   const updateStoreQuantity = useStore(state => state.updateCartQuantity);
   const removeFromCart = useStore(state => state.removeFromCart);
+  const user = useStore(state => state.user);
+  const setUser = useStore(state => state.setUser);
   
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -59,9 +76,30 @@ export default function Navbar() {
               Back to Main Site
             </Button>
           </Link>
-          <Link href="/login" className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors group">
-            <User className="h-5 w-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
-          </Link>
+          {mounted && user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-9 w-9 p-0 rounded-lg hover:bg-slate-100 transition-colors" />}>
+                  <User className="h-5 w-5 text-slate-600" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 rounded-xl">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col">
+                      <span className="font-bold">{user.fullName}</span>
+                      <span className="text-xs text-slate-500">{user.phone}</span>
+                    </div>
+                  </DropdownMenuLabel>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <Link href="/dashboard"><DropdownMenuItem>My Dashboard</DropdownMenuItem></Link>
+                <DropdownMenuItem onClick={() => setUser(null)}>Log out</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link href="/login" className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors group">
+              <User className="h-5 w-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
+            </Link>
+          )}
         </div>
       </header>
     );
@@ -264,9 +302,30 @@ export default function Navbar() {
               )}
             </SheetContent>
           </Sheet>
-          <Link href="/login" className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-slate-100 transition-colors group">
-            <User className="h-5 w-5 text-slate-900 group-hover:text-blue-600 transition-colors" />
-          </Link>
+          {mounted && user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-9 w-9 p-0 rounded-lg hover:bg-slate-100 transition-colors" />}>
+                  <User className="h-5 w-5 text-slate-900" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 rounded-xl">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col">
+                      <span className="font-bold">{user.fullName}</span>
+                      <span className="text-xs text-slate-500 font-normal">{user.phone}</span>
+                    </div>
+                  </DropdownMenuLabel>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <Link href="/dashboard"><DropdownMenuItem>My Dashboard</DropdownMenuItem></Link>
+                <DropdownMenuItem onClick={() => setUser(null)}>Log out</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link href="/login" className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-slate-100 transition-colors group">
+              <User className="h-5 w-5 text-slate-900 group-hover:text-blue-600 transition-colors" />
+            </Link>
+          )}
           <Button variant="ghost" size="icon" className="md:hidden">
             <Menu className="h-5 w-5" />
           </Button>
